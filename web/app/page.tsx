@@ -80,10 +80,20 @@ async function parseFileToRows(file: File): Promise<Record<string, unknown>[]> {
       rowFormat: "object",
       onComplete: (data: Record<string, unknown>[]) => { rows.push(...data); },
     });
-    return rows;
+    return normalizeBigInt(rows);
   }
 
   throw new Error(`Unsupported format: ${ext}`);
+}
+
+function normalizeBigInt(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map((row) => {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(row)) {
+      out[k] = typeof v === "bigint" ? Number(v) : v;
+    }
+    return out;
+  });
 }
 
 function inferDtype(values: unknown[]): string {
