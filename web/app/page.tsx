@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Papa from "papaparse";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ColumnSummary {
   name: string;
@@ -258,7 +259,7 @@ export default function Home() {
                 )}
               </div>
               <div className="p-6 prose prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{analysis}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{analysis}</ReactMarkdown>
               </div>
             </div>
           )}
