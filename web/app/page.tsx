@@ -236,7 +236,13 @@ export default function Home() {
               </p>
               {profile
                 ? <p className="text-xs text-gray-500 mt-1">{profile.rows.toLocaleString()} rows × {profile.columns} cols</p>
-                : <p className="text-xs text-gray-600 mt-1">CSV · TSV · Excel · JSON · Parquet</p>}
+                : (
+                  <div className="mt-2 flex flex-wrap justify-center gap-1">
+                    {["CSV", "TSV", "Excel", "JSON", "Parquet"].map((fmt) => (
+                      <span key={fmt} className="px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 text-xs font-medium border border-gray-700">{fmt}</span>
+                    ))}
+                  </div>
+                )}
             </div>
             <input ref={fileInputRef} type="file" accept=".csv,.tsv,.xlsx,.xls,.json,.parquet" onChange={onFileChange} className="hidden" />
           </div>
