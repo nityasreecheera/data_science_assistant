@@ -1,6 +1,8 @@
 """
 Data Science Assistant — Streamlit frontend.
 Run with: streamlit run app.py
+
+Supported formats: CSV, TSV, Excel (.xlsx/.xls), JSON, Parquet
 """
 
 import os
@@ -25,7 +27,7 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
 
-from assistant import load_and_profile, build_user_message, SYSTEM_PROMPT
+from assistant import load_and_profile, load_dataframe, build_user_message, SYSTEM_PROMPT
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -38,7 +40,7 @@ st.set_page_config(
 )
 
 st.title("🧠 Data Science Assistant")
-st.caption("Upload a CSV, ask a question, and get a full AI-powered data science analysis.")
+st.caption("Upload a dataset, ask a question, and get a full AI-powered data science analysis.")
 
 # ---------------------------------------------------------------------------
 # Sidebar — inputs
@@ -57,7 +59,12 @@ with st.sidebar:
     st.divider()
     st.header("Dataset")
 
-    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    SUPPORTED_TYPES = ["csv", "tsv", "xlsx", "xls", "json", "parquet"]
+    uploaded_file = st.file_uploader(
+        "Upload Dataset",
+        type=SUPPORTED_TYPES,
+        help="Supported: CSV, TSV, Excel, JSON, Parquet",
+    )
 
     question = st.text_area(
         "Your Question (optional)",
@@ -95,7 +102,8 @@ if run_btn:
 
     # ---- Load & profile data ----
     with st.spinner("Loading dataset..."):
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as tmp:
+        ext = Path(uploaded_file.name).suffix.lower()
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             tmp.write(uploaded_file.getvalue())
             tmp_path = tmp.name
 
@@ -103,7 +111,7 @@ if run_btn:
             df, profile = load_and_profile(tmp_path)
             profile["filename"] = uploaded_file.name
         except Exception as e:
-            st.error(f"Failed to load CSV: {e}")
+            st.error(f"Failed to load file: {e}")
             st.stop()
         finally:
             os.unlink(tmp_path)
@@ -172,7 +180,12 @@ if run_btn:
 elif uploaded_file:
     # Show preview while user hasn't clicked Run yet
     try:
-        df_preview = pd.read_csv(uploaded_file)
+        ext = Path(uploaded_file.name).suffix.lower()
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(uploaded_file.getvalue())
+            tmp_path = tmp.name
+        df_preview = load_dataframe(tmp_path)
+        os.unlink(tmp_path)
         st.subheader("📋 Data Preview")
         rows, cols = df_preview.shape
         c1, c2 = st.columns(2)

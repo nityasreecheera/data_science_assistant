@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Data Science Assistant — Analyze any CSV dataset with Claude.
+Data Science Assistant — Analyze any dataset with Claude.
+
+Supported formats: CSV, TSV, Excel (.xlsx/.xls), JSON, Parquet
 
 Usage:
-    python assistant.py <csv_file> [--question "predict churn"] [--description "desc"]
+    python assistant.py <file> [--question "predict churn"] [--description "desc"]
 
 Requirements:
     ANTHROPIC_API_KEY environment variable must be set.
@@ -203,9 +205,30 @@ def _safe_float(val):
         return None
 
 
+def load_dataframe(filepath: str) -> pd.DataFrame:
+    """Load a file into a DataFrame based on its extension."""
+    ext = Path(filepath).suffix.lower()
+    if ext == ".csv":
+        return pd.read_csv(filepath)
+    elif ext == ".tsv":
+        return pd.read_csv(filepath, sep="\t")
+    elif ext in (".xlsx", ".xls"):
+        return pd.read_excel(filepath)
+    elif ext == ".parquet":
+        return pd.read_parquet(filepath)
+    elif ext == ".json":
+        try:
+            return pd.read_json(filepath)
+        except ValueError:
+            return pd.read_json(filepath, lines=True)
+    else:
+        # Try CSV as fallback
+        return pd.read_csv(filepath)
+
+
 def load_and_profile(filepath: str) -> tuple[pd.DataFrame, dict]:
-    """Load a CSV file and return (DataFrame, profile_dict)."""
-    df = pd.read_csv(filepath)
+    """Load a data file and return (DataFrame, profile_dict)."""
+    df = load_dataframe(filepath)
 
     profile: dict = {
         "filename": os.path.basename(filepath),
@@ -355,7 +378,7 @@ Examples:
   python assistant.py data.csv -q "predict price" -d "Airbnb listings in NYC"
         """,
     )
-    parser.add_argument("csv_file", help="Path to the CSV file")
+    parser.add_argument("csv_file", help="Path to the data file (CSV, TSV, Excel, JSON, Parquet)")
     parser.add_argument("--question", "-q", help="ML question or goal (e.g. 'predict churn')")
     parser.add_argument("--description", "-d", help="Dataset description or business context")
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -23,6 +24,66 @@ interface DataProfile {
   stats: string;
   previewRows: Record<string, unknown>[];
   previewHeaders: string[];
+}
+
+const SUPPORTED_EXTENSIONS = [".csv", ".tsv", ".xlsx", ".xls", ".json", ".parquet"];
+
+async function parseFileToRows(file: File): Promise<Record<string, unknown>[]> {
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+  if (ext === ".csv") {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: (r) => resolve(r.data as Record<string, unknown>[]),
+        error: (err: { message: string }) => reject(new Error(err.message)),
+      });
+    });
+  }
+
+  if (ext === ".tsv") {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, delimiter: "\t",
+        complete: (r) => resolve(r.data as Record<string, unknown>[]),
+        error: (err: { message: string }) => reject(new Error(err.message)),
+      });
+    });
+  }
+
+  if (ext === ".xlsx" || ext === ".xls") {
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer);
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[];
+  }
+
+  if (ext === ".json") {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    if (Array.isArray(json)) return json as Record<string, unknown>[];
+    for (const key of Object.keys(json)) {
+      if (Array.isArray(json[key])) return json[key] as Record<string, unknown>[];
+    }
+    return [json] as Record<string, unknown>[];
+  }
+
+  if (ext === ".parquet") {
+    const { parquetRead } = await import("hyparquet");
+    const buffer = await file.arrayBuffer();
+    const rows: Record<string, unknown>[] = [];
+    await parquetRead({
+      file: {
+        byteLength: buffer.byteLength,
+        slice: (start: number, end?: number) => Promise.resolve(buffer.slice(start, end)),
+      },
+      rowFormat: "object",
+      onComplete: (data: Record<string, unknown>[]) => { rows.push(...data); },
+    });
+    return rows;
+  }
+
+  throw new Error(`Unsupported format: ${ext}`);
 }
 
 function inferDtype(values: unknown[]): string {
@@ -92,17 +153,19 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".csv")) { setError("Please upload a CSV file."); return; }
+  const handleFile = useCallback(async (file: File) => {
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      setError(`Unsupported format. Please upload: CSV, TSV, Excel, JSON, or Parquet.`);
+      return;
+    }
     setError(""); setAnalysis("");
-    Papa.parse(file, {
-      header: true, skipEmptyLines: true,
-      complete: (results) => {
-        try { setProfile(profileData(file.name, results.data as Record<string, unknown>[])); }
-        catch (e) { setError(e instanceof Error ? e.message : "Failed to parse CSV"); }
-      },
-      error: (err: { message: string }) => setError(err.message),
-    });
+    try {
+      const rows = await parseFileToRows(file);
+      setProfile(profileData(file.name, rows));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to parse file");
+    }
   }, []);
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -169,11 +232,13 @@ export default function Home() {
               <p className="text-sm text-gray-400">
                 {profile
                   ? <span className="text-green-400 font-medium">✓ {profile.filename}</span>
-                  : <>Drop CSV here or <span className="text-blue-400">browse</span></>}
+                  : <>Drop file here or <span className="text-blue-400">browse</span></>}
               </p>
-              {profile && <p className="text-xs text-gray-500 mt-1">{profile.rows.toLocaleString()} rows × {profile.columns} cols</p>}
+              {profile
+                ? <p className="text-xs text-gray-500 mt-1">{profile.rows.toLocaleString()} rows × {profile.columns} cols</p>
+                : <p className="text-xs text-gray-600 mt-1">CSV · TSV · Excel · JSON · Parquet</p>}
             </div>
-            <input ref={fileInputRef} type="file" accept=".csv" onChange={onFileChange} className="hidden" />
+            <input ref={fileInputRef} type="file" accept=".csv,.tsv,.xlsx,.xls,.json,.parquet" onChange={onFileChange} className="hidden" />
           </div>
 
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
