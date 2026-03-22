@@ -74,9 +74,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { profile, question, description } = body;
 
-    const apiKey = req.headers.get("x-api-key") || process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Missing API key" }), { status: 401 });
+      return new Response(JSON.stringify({ error: "Server misconfiguration: missing API key" }), { status: 500 });
     }
 
     const client = new Anthropic({ apiKey });

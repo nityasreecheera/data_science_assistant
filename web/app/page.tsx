@@ -82,7 +82,6 @@ function profileData(filename: string, data: Record<string, unknown>[]): DataPro
 }
 
 export default function Home() {
-  const [apiKey, setApiKey] = useState("");
   const [profile, setProfile] = useState<DataProfile | null>(null);
   const [question, setQuestion] = useState("");
   const [description, setDescription] = useState("");
@@ -118,12 +117,11 @@ export default function Home() {
 
   const runAnalysis = async () => {
     if (!profile) return;
-    if (!apiKey) { setError("Please enter your Anthropic API key."); return; }
     setError(""); setAnalysis(""); setLoading(true);
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profile, question, description }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Request failed"); }
@@ -157,13 +155,6 @@ export default function Home() {
 
       <div className="max-w-6xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Anthropic API Key</label>
-            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-ant-api03-..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500" />
-          </div>
-
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Dataset</label>
             <div
