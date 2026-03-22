@@ -339,7 +339,7 @@ export default function Home() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
               <div className="text-5xl mb-4">📊</div>
               <h3 className="text-lg font-semibold text-white mb-2">Upload a dataset to get started</h3>
-              <p className="text-sm text-gray-400">Drop any CSV file and get a full AI-powered data science analysis in seconds.</p>
+              <p className="text-sm text-gray-400">Drop any dataset (CSV, Excel, JSON, Parquet) and get a full AI-powered data science analysis in seconds.</p>
             </div>
           )}
         </div>
